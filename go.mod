@@ -1,3 +1,3 @@
-module snehalreddy/MicroGoIntro
+module github.com/snehalreddy/MicroGoIntro
 
 go 1.16
