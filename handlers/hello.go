@@ -7,27 +7,27 @@ import (
 	"net/http"
 )
 
-// Hello handler
 type Hello struct {
 	l *log.Logger
 }
 
-// NewHello function that takes logger and returns Hello reference
 func NewHello(l *log.Logger) *Hello {
 	return &Hello{l}
 }
 
 func (h *Hello) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	log.Println("Hello, world!")
-	d, err := ioutil.ReadAll(r.Body)
+	h.l.Println("Hello, world!")
 
+	d, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(rw, "Oops", http.StatusBadRequest)
-		//rw.WriteHeader(http.StatusBadRequest)
-		//rw.Write([]byte("Oops"))
+		// rw.WriteHeader(http.StatusBadRequest)
+		// rw.Write([]byte("Oops, bad request"))
+
+		// convenience method from http can be used instead of the above two lines
+		http.Error(rw, "Oops, bad request", http.StatusBadRequest)
 		return
 	}
 
-	//log.Printf("Data: %s\n", d)
-	fmt.Fprintf(rw, "Data: %s\n", d)
+	// log.Printf("Data: %s\n", d)
+	fmt.Fprintf(rw, "Hello, %s.\n", d)
 }
