@@ -8,21 +8,26 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/snehalreddy/MicroGoIntro/handlers"
 )
 
 func main() {
 	l := log.New(os.Stdout, "product-api", log.LstdFlags)
-	// hh := handlers.NewHello(l)
-	// gh := handlers.NewGoodbye(l)
 	ph := handlers.NewProducts(l)
 
-	sm := http.NewServeMux()
-	// sm.Handle("/", hh)
-	// sm.Handle("/goodbye", gh)
-	sm.Handle("/", ph)
+	sm := mux.NewRouter()
 
-	// http.ListenAndServe(":9090", sm)
+	getRouter := sm.Methods(http.MethodGet).Subrouter()
+	getRouter.HandleFunc("/", ph.GetProducts)
+
+	postRouter := sm.Methods(http.MethodPost).Subrouter()
+	postRouter.HandleFunc("/product", ph.AddProduct)
+	postRouter.Use(ph.MiddlewareProductValidation)
+
+	putRouter := sm.Methods(http.MethodPut).Subrouter()
+	putRouter.HandleFunc("/product/{id:[0-9]+}", ph.UpdateProducts)
+	putRouter.Use(ph.MiddlewareProductValidation)
 
 	s := &http.Server{
 		Addr:         ":9090",

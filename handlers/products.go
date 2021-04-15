@@ -1,12 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
-	"regexp"
 	"strconv"
 
+	"github.com/gorilla/mux"
 	"github.com/snehalreddy/MicroGoIntro/data"
 )
 
@@ -18,51 +19,7 @@ func NewProducts(l *log.Logger) *Products {
 	return &Products{l}
 }
 
-func (p *Products) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		p.getProducts(rw, r)
-		return
-	}
-
-	if r.Method == http.MethodPost {
-		p.addProduct(rw, r)
-		return
-	}
-
-	if r.Method == http.MethodPut {
-		// expect ID in the URI
-		reg := regexp.MustCompile(`/([0-9]+)`)
-		params := reg.FindAllStringSubmatch(r.URL.Path, -1)
-		p.l.Println(params)
-
-		if len(params) != 1 {
-			p.l.Println("More than one id")
-			http.Error(rw, "Invalid parameters", http.StatusBadRequest)
-			return
-		}
-		if len(params[0]) != 2 {
-			p.l.Println("More than control group match")
-			http.Error(rw, "Invalid parameters", http.StatusBadRequest)
-			return
-		}
-
-		id, err := strconv.Atoi(params[0][1])
-		if err != nil {
-			p.l.Println("Cannot parse number")
-			http.Error(rw, "Invalid parameters", http.StatusBadRequest)
-			return
-		}
-		p.l.Println("Got id:", id)
-
-		p.updateProducts(id, rw, r)
-		return
-	}
-
-	// catch all
-	rw.WriteHeader(http.StatusMethodNotAllowed)
-}
-
-func (p *Products) getProducts(rw http.ResponseWriter, r *http.Request) {
+func (p *Products) GetProducts(rw http.ResponseWriter, r *http.Request) {
 	p.l.Println("Handle GET Products...")
 	lp := data.GetProducts()
 	// d, err := json.Marshal(lp)
@@ -76,32 +33,27 @@ func (p *Products) getProducts(rw http.ResponseWriter, r *http.Request) {
 	// rw.Write(d)
 }
 
-func (p *Products) addProduct(rw http.ResponseWriter, r *http.Request) {
+func (p *Products) AddProduct(rw http.ResponseWriter, r *http.Request) {
 	p.l.Println("Handle POST Product...")
 
-	prod := &data.Product{}
-	err := prod.FromJSON(r.Body)
-	if err != nil {
-		http.Error(rw, "Oops, some error occured while parsing the data.", http.StatusBadRequest)
-		return
-	}
+	prod := r.Context().Value(KeyProduct{}).(*data.Product)
 
-	p.l.Printf("Prod: %#v", prod)
 	data.AddProduct(prod)
 }
 
-func (p *Products) updateProducts(id int, rw http.ResponseWriter, r *http.Request) {
-	p.l.Println("Handle PUT Product...")
-
-	prod := &data.Product{}
-	err := prod.FromJSON(r.Body)
-	if err != nil {
-		http.Error(rw, "Oops, some error occured while parsing the data.", http.StatusBadRequest)
+func (p *Products) UpdateProducts(rw http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, strErr := strconv.Atoi(vars["id"])
+	if strErr != nil {
+		http.Error(rw, "Oops, cannot parse id...", http.StatusBadRequest)
 		return
 	}
 
-	p.l.Printf("Prod: %#v", prod)
-	err = data.PutProduct(id, prod)
+	p.l.Println("Handle PUT product with id:", id)
+
+	prod := r.Context().Value(KeyProduct{}).(*data.Product)
+
+	err := data.PutProduct(id, prod)
 	if err == data.ErrProductNotFound {
 		http.Error(rw, "Product not found", http.StatusNotFound)
 		return
@@ -112,4 +64,23 @@ func (p *Products) updateProducts(id int, rw http.ResponseWriter, r *http.Reques
 	}
 
 	fmt.Fprintf(rw, "Patch successful...!")
+}
+
+type KeyProduct struct{}
+
+func (p Products) MiddlewareProductValidation(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		prod := &data.Product{}
+		err := prod.FromJSON(r.Body)
+		if err != nil {
+			http.Error(rw, "Oops, some error occured while parsing the data.", http.StatusBadRequest)
+			return
+		}
+
+		p.l.Printf("Prod: %#v", prod)
+		ctx := context.WithValue(r.Context(), KeyProduct{}, prod)
+		req := r.WithContext(ctx)
+
+		next.ServeHTTP(rw, req)
+	})
 }
