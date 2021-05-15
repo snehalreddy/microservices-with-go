@@ -10,7 +10,15 @@ import (
 	"github.com/go-playground/validator"
 )
 
+var ErrProductNotFound = fmt.Errorf("Product not found")
+
+// Product defines the structure of the API product
+// swagger:model
 type Product struct {
+	// the id for the user
+	// 
+	// required:true
+	// min:1
 	ID          int     `json:"id"`
 	Name        string  `json:"name" validate:"required"`
 	Description string  `json:"description"`
@@ -51,6 +59,27 @@ func getNextId() int {
 	return lId
 }
 
+func DeleteProduct(id int) error {
+	i := findProductIndex(id)
+
+	if i == -1 {
+		return ErrProductNotFound
+	}
+
+	productList = append(productList[:i], productList[i+1:]...)
+	return nil
+}
+
+func findProductIndex(id int) int {
+	for i, v := range productList {
+		if v.ID == id {
+			return i
+		}
+	}
+
+	return -1
+}
+
 type Products []*Product
 
 func (p *Products) ToJSON(w io.Writer) error {
@@ -82,8 +111,6 @@ var productList = []*Product{
 		UpdatedOn:   time.Now().UTC().String(),
 	},
 }
-
-var ErrProductNotFound = fmt.Errorf("Product not found")
 
 func PutProduct(id int, prod *Product) error {
 	pos, err := findProduct(id)

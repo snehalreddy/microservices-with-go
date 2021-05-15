@@ -1,3 +1,17 @@
+// Package classification of Product API
+//
+// Documentation for Product API
+//
+// Schemes: http
+// BasePath: /
+// Version: 1.0.0
+//
+// Consumes:
+// - application/json
+//
+// Produces:
+// - application/json
+// swagger:meta
 package handlers
 
 import (
@@ -11,6 +25,26 @@ import (
 	"github.com/snehalreddy/MicroGoIntro/data"
 )
 
+// A list of products are returned as response
+// swagger:response productsResponse
+type productsResponseWrapper struct {
+	// All products in the system
+	// in:body
+	Body []data.Product
+}
+
+// swagger:response noContent
+type productsNoContent struct {
+}
+
+// swagger:parameters deleteProducts
+type productIDParameterWrapper struct {
+	// The id of the product to delete from the database
+	// in:path
+	// required:true
+	ID int `json:"id"`
+}
+
 type Products struct {
 	l *log.Logger
 }
@@ -19,6 +53,12 @@ func NewProducts(l *log.Logger) *Products {
 	return &Products{l}
 }
 
+// swagger:route GET /products products listProducts
+// Returns a list of products
+// Responses:
+// 	200: productsResponse
+
+// GetProducts returns the products from the data store
 func (p *Products) GetProducts(rw http.ResponseWriter, r *http.Request) {
 	p.l.Println("Handle GET Products...")
 	lp := data.GetProducts()
@@ -64,6 +104,29 @@ func (p *Products) UpdateProducts(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(rw, "Patch successful...!")
+}
+
+// swagger:route DELETE /product/{id} products deleteProducts
+// Returns a list of products
+// Responses:
+// 	201: noContent
+
+// DeleteProducts deletes a product from the data store
+func (p *Products) DeleteProducts(rw http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, strErr := strconv.Atoi(vars["id"])
+	if strErr != nil {
+		http.Error(rw, "Oops, cannot parse id...", http.StatusBadRequest)
+		return
+	}
+
+	p.l.Println("Handle DELETE product with id:", id)
+
+	err := data.DeleteProduct(id)
+	if err != nil {
+		http.Error(rw, fmt.Sprintf("Product with id:%d, doesn't exist.", id), http.StatusBadRequest)
+		return
+	}
 }
 
 type KeyProduct struct{}
