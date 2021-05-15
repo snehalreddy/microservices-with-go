@@ -73,7 +73,20 @@ func (p Products) MiddlewareProductValidation(next http.Handler) http.Handler {
 		prod := &data.Product{}
 		err := prod.FromJSON(r.Body)
 		if err != nil {
+			p.l.Println("[ERROR] deserializing product", err)
 			http.Error(rw, "Oops, some error occured while parsing the data.", http.StatusBadRequest)
+			return
+		}
+
+		// validate the product
+		valErr := prod.Validate()
+		if valErr != nil {
+			p.l.Println("[ERROR] validating product", valErr)
+			http.Error(
+				rw,
+				fmt.Sprintf("Oops, some error occured while parsing the data, %s", valErr),
+				http.StatusBadRequest,
+			)
 			return
 		}
 
